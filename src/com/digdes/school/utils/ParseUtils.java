@@ -20,7 +20,7 @@ public final class ParseUtils {
             boolean result;
 
             if (!currentRow.containsKey(columns.name())) {
-                break; // no such column in row then comparison cannot be done
+                continue; // no such column in row then comparison cannot be done
             }
             try {
                result = (boolean) functions.get(i).apply(currentRow.get(columns.name()), values.get(i));
@@ -28,8 +28,8 @@ public final class ParseUtils {
                 System.out.println(ex.getMessage());
                 System.out.println("cannot compare with null");
                 System.out.println("exception in column : " + columns
-                        + "row value : " + currentRow.get(columns.name())
-                        + "passed value : " + values.get(i));
+                        + " | row value : " + currentRow.get(columns.name())
+                        + " | passed value : " + values.get(i));
                 result = false;
             }
 
@@ -206,11 +206,7 @@ public final class ParseUtils {
             }
 
             case "=" -> {
-                return (a, b) -> {
-                    if (a == null) {
-                        return false;
-                    }
-                    return a.equals(b);};
+                return Object::equals;
             }
 
             case "!=" -> {
@@ -253,11 +249,7 @@ public final class ParseUtils {
             }
 
             case "=" -> {
-                return (a, b) -> {
-                    if (a == null) {
-                        return false;
-                    }
-                    return a.equals(b);};
+                return String::equals;
             }
 
             case "!=" -> {
