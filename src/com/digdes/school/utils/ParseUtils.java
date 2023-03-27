@@ -10,7 +10,7 @@ import java.util.function.BiFunction;
 
 public final class ParseUtils {
 
-    private ParseUtils () {};
+    private ParseUtils () {}
 
     public static boolean getResultOfWhereComparison(List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList, List<Columns> columnsList, List<Object> values, List<BiFunction> functions, Map<String, Object> currentRow) {
         boolean finalResult = false;
@@ -18,9 +18,9 @@ public final class ParseUtils {
         for (Columns columns : columnsList) {
             int i = columnsList.indexOf(columns);
             boolean result;
-            Object currentRowColumn = currentRow.get(columns.name());
-            if (currentRowColumn == null) {
-                break;
+
+            if (!currentRow.containsKey(columns.name())) {
+                break; // no such column in row then comparison cannot be done
             }
             try {
                result = (boolean) functions.get(i).apply(currentRow.get(columns.name()), values.get(i));
@@ -93,9 +93,7 @@ public final class ParseUtils {
                 return Boolean.parseBoolean(value);
             }
 
-            default -> {
-                throw new Exception("no such column: " + column.name());
-            }
+            default -> throw new Exception("no such column: " + column.name());
         }
     }
 
@@ -167,9 +165,7 @@ public final class ParseUtils {
                         row.put(column, value);
                     }
 
-                    case active -> {
-                        row.put(column, Boolean.parseBoolean(value));
-                    }
+                    case active -> row.put(column, Boolean.parseBoolean(value));
                 }
             } else {
                 throw new Exception("no '=' symbol");
@@ -222,12 +218,10 @@ public final class ParseUtils {
                     if (a == null) {
                         return true;
                     }
-                    return a.equals(b);};
+                    return !a.equals(b);};
             }
 
-            default -> {
-                throw new Exception("incorrect operator: " + intOperator);
-            }
+            default -> throw new Exception("incorrect operator: " + intOperator);
         }
 
     }
@@ -271,12 +265,10 @@ public final class ParseUtils {
                     if (a == null) {
                         return true;
                     }
-                    return a.equals(b);};
+                    return !a.equals(b);};
             }
 
-            default -> {
-                throw new Exception("incorrect operator: " + strOperator);
-            }
+            default -> throw new Exception("incorrect operator: " + strOperator);
         }
     }
 }

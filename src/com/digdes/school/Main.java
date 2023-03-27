@@ -30,7 +30,7 @@ public class Main {
             List<Map<String,Object>> result3 = starter.execute("SELECT");
             System.out.println(result3);
 
-            List<Map<String,Object>> result4 = starter.execute("DELETE WHERE 'id' <= 3 AND 'cost'!=10.1");
+            List<Map<String,Object>> result4 = starter.execute("DELETE WHERE 'id' <= 3 OR 'cost'!= 10.1");
             System.out.println(result4);
         }catch (Exception ex){
             ex.printStackTrace();
