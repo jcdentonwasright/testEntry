@@ -83,10 +83,10 @@ public final class ParseUtils {
                 return Double.parseDouble(value);
             }
             case lastname -> {
-                if (!value.matches("[A-z]*")) {
+                if (!value.matches("'.*'")) {
                     throw new Exception("incorrect value to lastname: " + value);
                 }
-                return value;
+                return value.replaceAll("^'|'$", "");
             }
 
             case active -> {
