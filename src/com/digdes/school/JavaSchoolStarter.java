@@ -18,8 +18,8 @@ public class JavaSchoolStarter {
     public List<Map<String, Object>> execute(String request) throws Exception {
         request = request.replaceAll("\\s+", " "); // deleting all whitespaces that occur consecutively more than 1 time
 
-        request = request.replaceAll("(?<=[^a-zA-Z0-9а-яА-Я])'", " '");
-        request = request.replaceAll("'(?=[^a-zA-Z0-9а-яА-Я])", "'  "); // formatting request in more convenient form
+        request = request.replaceAll("(?<=[^a-zA-Z0-9а-яА-Я%])'", " '");
+        request = request.replaceAll("'(?=[^a-zA-Z0-9а-яА-Я%])", "'  "); // formatting request in more convenient form
         request = request.replaceAll(",", " , ");
         request = request.replaceAll("=(?=\\w|')","= ");
         Scanner sc = new Scanner(request);
