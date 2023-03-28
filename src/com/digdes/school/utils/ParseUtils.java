@@ -73,12 +73,16 @@ public final class ParseUtils {
 
             String operator = sc.next().toLowerCase(Locale.ROOT);
             switch (column) {
-                case age, id, cost, active -> {
+                case age, id, cost -> {
                     BiFunction<T, T, Boolean> function = parseIntOperatorToBiFunc(operator);
                     functions.add(function);
                 }
                 case lastname -> {
                     BiFunction<String, String, Boolean> function = parseStrOperatorToBiFunc(operator);
+                    functions.add(function);
+                }
+                case active -> {
+                    BiFunction<Boolean,Boolean,Boolean> function = parseBooleanToBiFunc(operator);
                     functions.add(function);
                 }
             }
@@ -234,9 +238,26 @@ public final class ParseUtils {
                 };
             }
 
-            default -> throw new Exception("incorrect operator: " + intOperator);
+            default -> throw new Exception("operator is not supported by Number type: " + intOperator);
         }
+    }
 
+    public static BiFunction<Boolean, Boolean, Boolean> parseBooleanToBiFunc(String logicalOperator) throws Exception {
+        switch (logicalOperator) {
+            case "=" -> {
+                return Object::equals;
+            }
+
+            case "!=" -> {
+                return (a, b) -> {
+                    if (a == null) {
+                        return true;
+                    }
+                    return !a.equals(b);
+                };
+            }
+            default -> throw new Exception("operator is not supported by Boolean type:" + logicalOperator);
+        }
     }
 
     public static BiFunction<String, String, Boolean> parseStrOperatorToBiFunc(String strOperator) throws Exception {
@@ -278,7 +299,7 @@ public final class ParseUtils {
                 };
             }
 
-            default -> throw new Exception("incorrect operator: " + strOperator);
+            default -> throw new Exception("operator is not supported by String type: " + strOperator);
         }
     }
 }

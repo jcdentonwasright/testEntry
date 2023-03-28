@@ -20,7 +20,7 @@ public class Main {
             //Вставка строки в коллекцию
             List<Map<String,Object>> result1 = starter.execute("INSERT VALUES 'lastName' = 'Федоров' , 'id'=3, 'age'=40, 'active'=true");
             System.out.println(result1);
-            List<Map<String,Object>> result5 = starter.execute("INSERT VALUES 'lastName' = 'Димас' , 'id'=4, 'age'=21, 'active'=true");
+            List<Map<String,Object>> result5 = starter.execute("INSERT VALUES 'lastName' = 'Димас' , 'id'=4, 'cost' = null ,'age'=21, 'active'=true");
             System.out.println(result5);
             //Изменение значения которое выше записывали
             List<Map<String,Object>> result2 = starter.execute("UPDATE VALUES 'active'=false, 'cost'=10.1 where 'id'=3");
@@ -30,8 +30,9 @@ public class Main {
             List<Map<String,Object>> result3 = starter.execute("SELECT");
             System.out.println(result3);
 
-            List<Map<String,Object>> result4 = starter.execute("DELETE WHERE 'id' <= 3 OR 'cost'!= 10.1");
+            List<Map<String,Object>> result4 = starter.execute("DELETE WHERE 'lastname' like '%д%'");
             System.out.println(result4);
+
         }catch (Exception ex){
             ex.printStackTrace();
         }
