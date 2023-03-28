@@ -1,6 +1,7 @@
 package com.digdes.school;
 
-import com.digdes.school.enums.*;
+import com.digdes.school.enums.Columns;
+import com.digdes.school.enums.Statements;
 
 import java.util.*;
 import java.util.function.BiFunction;
@@ -21,7 +22,7 @@ public class JavaSchoolStarter {
         request = request.replaceAll("(?<=[^a-zA-Z0-9а-яА-Я%])'", " '");
         request = request.replaceAll("'(?=[^a-zA-Z0-9а-яА-Я%])", "'  "); // formatting request in more convenient form
         request = request.replaceAll(",", " , ");
-        request = request.replaceAll("=(?=\\w|')","= ");
+        request = request.replaceAll("=(?=\\w|')", "= ");
         Scanner sc = new Scanner(request);
 
         String statementToken = sc.next();
@@ -42,109 +43,92 @@ public class JavaSchoolStarter {
                 }
             }
         } catch (Exception e) {
-            throw new Exception(e.getMessage() + " request: " + request,e);
+            throw new Exception(e.getMessage() + " request: " + request, e);
         }
 
         throw new Exception("something went wrong");
     }
 
-    private <T extends Comparable<T>> List<Map<String, Object>> executeSelectStatement(Scanner sc) throws Exception {
-        List<Map<String,Object>> resultSet = new ArrayList<>();
+    private List<Map<String, Object>> executeInsertStatement(Scanner sc) throws Exception {
+        Map<String, Object> row = new HashMap<>();
+        if (!sc.next().toLowerCase(Locale.ROOT).equals("values")) {
+            throw new Exception("wrong syntax");
+        }
+
+        parseValues(sc, row);
+        data.add(row);
+        return data;
+
+    }
+
+    private <T extends Comparable<T>> List<Map<String, Object>> executeUpdateStatement(Scanner sc) throws Exception {
+        Map<String, Object> valuesRow = new HashMap<>();
+
+        List<Map<String, Object>> updatedRows = new ArrayList<>();
 
         List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList = new ArrayList<>();
         List<Columns> columnsList = new ArrayList<>();
         List<Object> values = new ArrayList<>();
         List<BiFunction> functionList = new ArrayList<>();
 
-        if (sc.hasNext() && sc.next().toLowerCase(Locale.ROOT).equals("where")) {
-            parseWhere(sc, logicalOperatorsList, columnsList, values, functionList);
+        if (!sc.next().toLowerCase(Locale.ROOT).equals("values")) {
+            throw new Exception("wrong syntax");
+        }
 
+        String lastToken = parseValues(sc, valuesRow);
+        if (!lastToken.equals("where")) {
             for (Map<String, Object> currentRow : data) {
-                boolean finalResult = getResultOfWhereComparison(logicalOperatorsList, columnsList, values, functionList, currentRow);
-                if (finalResult) {
-                    resultSet.add(currentRow);
-                }
+                currentRow.putAll(valuesRow);
             }
-
-        } else {
             return data;
         }
-        return resultSet;
+
+        parseWhere(sc, logicalOperatorsList, columnsList, values, functionList);
+        for (Map<String, Object> currentRow : data) {
+            boolean finalResult = getResultOfWhereComparison(logicalOperatorsList, columnsList, values, functionList, currentRow);
+            if (finalResult) {
+                currentRow.putAll(valuesRow);
+                updatedRows.add(currentRow);
+            }
+        }
+
+        return updatedRows;
     }
 
     private <T extends Comparable<T>> List<Map<String, Object>> executeDeleteStatement(Scanner sc) throws Exception {
-        List<Map<String,Object>> deletedRows = new ArrayList<>();
+        List<Map<String, Object>> deletedRows = new ArrayList<>();
 
         List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList = new ArrayList<>();
         List<Columns> columnsList = new ArrayList<>();
         List<Object> values = new ArrayList<>();
         List<BiFunction> functionList = new ArrayList<>();
-
-        if (sc.hasNext() && sc.next().toLowerCase(Locale.ROOT).equals("where")) {
-            parseWhere(sc, logicalOperatorsList, columnsList, values, functionList);
-
-            for (Map<String, Object> currentRow : data) {
-                boolean finalResult = getResultOfWhereComparison(logicalOperatorsList, columnsList, values, functionList, currentRow);
-                if (finalResult) {
-                    deletedRows.add(currentRow);
-                }
-            }
-
-        } else {
-          data.clear();
-          System.out.println("All data wiped");
+        if (!sc.hasNext()) {
+            deletedRows.addAll(data);
+            deletedRows.clear();
+            return deletedRows;
         }
-        for (Map<String,Object> deletedRow : deletedRows) {
+
+        parseWhereToResultSet(sc, deletedRows, logicalOperatorsList, columnsList, values, functionList, data);
+
+        for (Map<String, Object> deletedRow : deletedRows) {
             data.remove(deletedRow);
         }
         return deletedRows;
     }
 
-    private <T extends Comparable<T>> List<Map<String, Object>> executeUpdateStatement(Scanner sc) throws Exception {
-        Map<String, Object> row = new HashMap<>();
-
-        List<Map<String,Object>> updatedRows = new ArrayList<>();
+    private <T extends Comparable<T>> List<Map<String, Object>> executeSelectStatement(Scanner sc) throws Exception {
+        List<Map<String, Object>> resultSet = new ArrayList<>();
 
         List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList = new ArrayList<>();
         List<Columns> columnsList = new ArrayList<>();
         List<Object> values = new ArrayList<>();
         List<BiFunction> functionList = new ArrayList<>();
-
-        if (sc.hasNext() && sc.next().toLowerCase(Locale.ROOT).equals("values")) {
-            String lastToken = parseValues(sc, row);
-            if (lastToken.equals("where")) {
-                parseWhere(sc, logicalOperatorsList, columnsList, values, functionList);
-
-                for (Map<String, Object> currentRow : data) {
-                    boolean finalResult = getResultOfWhereComparison(logicalOperatorsList, columnsList, values, functionList, currentRow);
-                    if (finalResult) {
-                        currentRow.putAll(row);
-                        updatedRows.add(currentRow);
-                    }
-                }
-
-
-            } else {
-                for (Map<String, Object> currentRow : data) {
-                    currentRow.putAll(row);
-                }
-                return data;
-            }
-            return updatedRows;
-        } else {
-            throw new Exception("wrong syntax");
-        }
-    }
-
-    private List<Map<String, Object>> executeInsertStatement(Scanner sc) throws Exception {
-        Map<String, Object> row = new HashMap<>();
-        if (sc.next().toLowerCase(Locale.ROOT).equals("values")) {
-            parseValues(sc, row);
-            data.add(row);
+        if (!sc.hasNext()) {
             return data;
-        } else {
-            throw new Exception("wrong syntax");
         }
-    }
 
+        parseWhereToResultSet(sc, resultSet, logicalOperatorsList, columnsList, values, functionList, data);
+
+        return resultSet;
+    }
 }

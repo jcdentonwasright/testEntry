@@ -10,7 +10,8 @@ import java.util.function.BiFunction;
 
 public final class ParseUtils {
 
-    private ParseUtils () {}
+    private ParseUtils() {
+    }
 
     public static boolean getResultOfWhereComparison(List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList, List<Columns> columnsList, List<Object> values, List<BiFunction> functions, Map<String, Object> currentRow) {
         boolean finalResult = false;
@@ -23,7 +24,7 @@ public final class ParseUtils {
                 continue; // no such column in row then comparison cannot be done
             }
             try {
-               result = (boolean) functions.get(i).apply(currentRow.get(columns.name()), values.get(i));
+                result = (boolean) functions.get(i).apply(currentRow.get(columns.name()), values.get(i));
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
                 System.out.println("cannot compare with null");
@@ -45,6 +46,26 @@ public final class ParseUtils {
         return finalResult;
     }
 
+    public static void parseWhereToResultSet(Scanner sc,
+                                             List<Map<String, Object>> resultSet,
+                                             List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList,
+                                             List<Columns> columnsList,
+                                             List<Object> values, List<BiFunction> functionList,
+                                             List<Map<String, Object>> data) throws Exception {
+        if (!sc.next().toLowerCase(Locale.ROOT).equals("where")) {
+            throw new Exception("wrong syntax");
+        }
+
+        parseWhere(sc, logicalOperatorsList, columnsList, values, functionList);
+
+        for (Map<String, Object> currentRow : data) {
+            boolean finalResult = getResultOfWhereComparison(logicalOperatorsList, columnsList, values, functionList, currentRow);
+            if (finalResult) {
+                resultSet.add(currentRow);
+            }
+        }
+    }
+
     public static <T extends Comparable<T>> void parseWhere(Scanner sc, List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList, List<Columns> columnsList, List<Object> values, List<BiFunction> functions) throws Exception {
         while (sc.hasNext()) {
             Columns column = Columns.valueOf(sc.next().replaceAll("^'|'$", "").toLowerCase(Locale.ROOT));
@@ -62,8 +83,7 @@ public final class ParseUtils {
                 }
             }
 
-            values.add(parseWhereValue(column, sc.next()));
-
+            values.add(parseWhereValues(column, sc.next()));
 
             if (sc.hasNext()) {
                 logicalOperatorsList.add(parseLogicalOperatorToBiFunc(sc.next().toLowerCase(Locale.ROOT)));
@@ -74,7 +94,7 @@ public final class ParseUtils {
         }
     }
 
-    public static Object parseWhereValue(Columns column, String value) throws Exception {
+    public static Object parseWhereValues(Columns column, String value) throws Exception {
         switch (column) {
             case id, age -> {
                 return Long.parseLong(value);
@@ -122,56 +142,55 @@ public final class ParseUtils {
 
             String column = columnInBraces.replaceAll("^'|'$", "").toLowerCase(Locale.ROOT);
 
-            if (sc.next().equals("=")) {
-                Columns currentColumn = Columns.valueOf(column);
-                atLeastOneParam = true;
-                String value = sc.next().replaceAll("^'|'$", "");
-
-                if (value.equals("null")) {
-                    row.put(column, null);
-                    continue;
-                }
-
-                if (row.containsKey(column)) {
-                    throw new Exception("incorrect syntax: same column twice in VALUES request");
-                }
-
-                switch (currentColumn) {
-                    case id -> {
-                        Long id = Long.parseLong(value);
-                        if (id < 0) {
-                            throw new Exception("incorrect value to id: " + value);
-                        }
-                        row.put(column, id);
-                    }
-                    case age -> {
-                        Long age = Long.parseLong(value);
-                        if (age < 0 || age > 120) {
-                            throw new Exception("incorrect value to age: " + value);
-                        }
-                        row.put(column, age);
-                    }
-                    case cost -> {
-                        Double cost = Double.parseDouble(value);
-                        if (cost < 0) {
-                            throw new Exception("incorrect value to cost: " + value);
-                        }
-                        row.put(column, cost);
-                    }
-                    case lastname -> {
-                        if (!value.matches("[A-z]*|[А-я]*")) {
-                            throw new Exception("incorrect value to lastname: " + value);
-                        }
-                        row.put(column, value);
-                    }
-
-                    case active -> row.put(column, Boolean.parseBoolean(value));
-                }
-            } else {
+            if (!sc.next().equals("=")) {
                 throw new Exception("no '=' symbol");
             }
 
+            Columns currentColumn = Columns.valueOf(column);
+            atLeastOneParam = true;
+            String value = sc.next().replaceAll("^'|'$", "");
+
+            if (value.equals("null")) {
+                row.put(column, null);
+                continue;
+            }
+
+            if (row.containsKey(column)) {
+                throw new Exception("incorrect syntax: same column twice in VALUES request");
+            }
+            switch (currentColumn) {
+                case id -> {
+                    Long id = Long.parseLong(value);
+                    if (id < 0) {
+                        throw new Exception("incorrect value to id: " + value);
+                    }
+                    row.put(column, id);
+                }
+                case age -> {
+                    Long age = Long.parseLong(value);
+                    if (age < 0 || age > 120) {
+                        throw new Exception("incorrect value to age: " + value);
+                    }
+                    row.put(column, age);
+                }
+                case cost -> {
+                    Double cost = Double.parseDouble(value);
+                    if (cost < 0) {
+                        throw new Exception("incorrect value to cost: " + value);
+                    }
+                    row.put(column, cost);
+                }
+                case lastname -> {
+                    if (!value.matches("[A-z]*|[А-я]*")) {
+                        throw new Exception("incorrect value to lastname: " + value);
+                    }
+                    row.put(column, value);
+                }
+
+                case active -> row.put(column, Boolean.parseBoolean(value));
+            }
         }
+
         return "";
     }
 
@@ -183,7 +202,6 @@ public final class ParseUtils {
             case "or" -> {
                 return (a, b) -> a || b;
             }
-
             default -> throw new Exception("not a logical operator :" + logicalOperator);
         }
     }
@@ -193,7 +211,6 @@ public final class ParseUtils {
             case ">" -> {
                 return (a, b) -> a.compareTo(b) > 0;
             }
-
             case "<" -> {
                 return (a, b) -> a.compareTo(b) < 0;
             }
@@ -208,13 +225,13 @@ public final class ParseUtils {
             case "=" -> {
                 return Object::equals;
             }
-
             case "!=" -> {
                 return (a, b) -> {
                     if (a == null) {
                         return true;
                     }
-                    return !a.equals(b);};
+                    return !a.equals(b);
+                };
             }
 
             default -> throw new Exception("incorrect operator: " + intOperator);
@@ -230,7 +247,7 @@ public final class ParseUtils {
                         regex = regex.replaceFirst("%", ".*");
                     }
                     if (regex.lastIndexOf('%') == regex.length() - 1) {
-                        regex = regex.replaceAll("%", ".*");
+                        regex = regex.replaceAll("%$", ".*");
                     }
                     return string.matches(regex);
                 };
@@ -242,7 +259,7 @@ public final class ParseUtils {
                         regex = regex.replaceFirst("%", ".*");
                     }
                     if (regex.lastIndexOf('%') == regex.length() - 1) {
-                        regex = regex.replaceAll("%", ".*");
+                        regex = regex.replaceAll("%$", ".*");
                     }
                     return string.toLowerCase(Locale.ROOT).matches(regex.toLowerCase(Locale.ROOT));
                 };
@@ -257,7 +274,8 @@ public final class ParseUtils {
                     if (a == null) {
                         return true;
                     }
-                    return !a.equals(b);};
+                    return !a.equals(b);
+                };
             }
 
             default -> throw new Exception("incorrect operator: " + strOperator);
