@@ -2,53 +2,97 @@ package com.digdes.school.utils;
 
 import com.digdes.school.enums.Columns;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 import java.util.function.BiFunction;
 
 public final class ParseUtils {
+    private static class Wrapper {
+        Integer value;
+
+        public Wrapper(Integer value) {
+            this.value = value;
+        }
+
+        public void add(Integer value) {
+            this.value += value;
+        }
+    }
 
     private ParseUtils() {
     }
 
-    public static boolean getResultOfWhereComparison(List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList, List<Columns> columnsList, List<Object> values, List<BiFunction> functions, Map<String, Object> currentRow) {
-        boolean finalResult = false;
-        int j = 0;
-        for (Columns columns : columnsList) {
-            int i = columnsList.indexOf(columns);
+    public static boolean getResultOfWhereComparison(List<String> logicalOperatorsList,
+                                                     List<Columns> columnsList,
+                                                     List<Object> values,
+                                                     List<BiFunction> functions,
+                                                     Map<String, Object> currentRow) {
+        List<Boolean> results = new ArrayList<>();
+
+        int i = 0;
+        for (Columns column : columnsList) {
+
             boolean result;
 
-            if (!currentRow.containsKey(columns.name())) {
-                continue; // no such column in row then comparison cannot be done
+            if (!currentRow.containsKey(column.name())) {
+                return false; // no such column in row then comparison cannot be done
             }
             try {
-                result = (boolean) functions.get(i).apply(currentRow.get(columns.name()), values.get(i));
+                result = (boolean) functions.get(i).apply(currentRow.get(column.name()), values.get(i));
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
                 System.out.println("cannot compare with null");
-                System.out.println("exception in column : " + columns
-                        + " | row value : " + currentRow.get(columns.name())
+                System.out.println("exception in column : " + column
+                        + " | row value : " + currentRow.get(column.name())
                         + " | passed value : " + values.get(i));
                 result = false;
             }
-
-            if (!logicalOperatorsList.isEmpty() && i > 0) {
-                finalResult = logicalOperatorsList.get(j).apply(finalResult, result);
-                j++;
-                continue;
-            }
-
-            finalResult = result;
+            i++;
+            results.add(result);
+        }
+        if (logicalOperatorsList.isEmpty()) {
+            return results.get(0);
         }
 
-        return finalResult;
+        return getResult(logicalOperatorsList, results);
+    }
+
+    private static boolean getResult(List<String> logicalOperatorsList, List<Boolean> results) {
+        Wrapper wrapper = new Wrapper(0);
+        boolean result = orend(wrapper,logicalOperatorsList,results);
+        String op = logicalOperatorsList.get(wrapper.value);
+        while (op.equals("or")) {
+            wrapper.add(1);
+            boolean a = orend(wrapper,logicalOperatorsList,results);
+            result = result || a;
+            if (wrapper.value == logicalOperatorsList.size()) {
+                break;
+            }
+            op = logicalOperatorsList.get(wrapper.value);
+        }
+        return result;
+    }
+
+    private static boolean orend(Wrapper wrapper, List<String> logicalOperatorsList, List<Boolean> results) {
+        Boolean result = results.get(wrapper.value);
+        if (wrapper.value == logicalOperatorsList.size()) {
+            return result;
+        }
+        String op = logicalOperatorsList.get(wrapper.value);
+        while (op.equals("and")) {
+            wrapper.add(1);
+            boolean a = results.get(wrapper.value);;
+            result = result && a;
+            if (wrapper.value == logicalOperatorsList.size()) {
+                break;
+            }
+            op = logicalOperatorsList.get(wrapper.value);
+        }
+        return result;
     }
 
     public static void parseWhereToResultSet(Scanner sc,
                                              List<Map<String, Object>> resultSet,
-                                             List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList,
+                                             List<String> logicalOperatorsList,
                                              List<Columns> columnsList,
                                              List<Object> values, List<BiFunction> functionList,
                                              List<Map<String, Object>> data) throws Exception {
@@ -66,7 +110,7 @@ public final class ParseUtils {
         }
     }
 
-    public static <T extends Comparable<T>> void parseWhere(Scanner sc, List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList, List<Columns> columnsList, List<Object> values, List<BiFunction> functions) throws Exception {
+    public static <T extends Comparable<T>> void parseWhere(Scanner sc, List<String> logicalOperatorsList, List<Columns> columnsList, List<Object> values, List<BiFunction> functions) throws Exception {
         while (sc.hasNext()) {
             Columns column = Columns.valueOf(sc.next().replaceAll("^'|'$", "").toLowerCase(Locale.ROOT));
             columnsList.add(column);
@@ -82,7 +126,7 @@ public final class ParseUtils {
                     functions.add(function);
                 }
                 case active -> {
-                    BiFunction<Boolean,Boolean,Boolean> function = parseBooleanToBiFunc(operator);
+                    BiFunction<Boolean, Boolean, Boolean> function = parseBooleanToBiFunc(operator);
                     functions.add(function);
                 }
             }
@@ -90,7 +134,7 @@ public final class ParseUtils {
             values.add(parseWhereValues(column, sc.next()));
 
             if (sc.hasNext()) {
-                logicalOperatorsList.add(parseLogicalOperatorToBiFunc(sc.next().toLowerCase(Locale.ROOT)));
+                logicalOperatorsList.add(sc.next().toLowerCase(Locale.ROOT));
                 if (!sc.hasNext()) {
                     throw new Exception("incorrect syntax");
                 }
@@ -196,18 +240,6 @@ public final class ParseUtils {
         }
 
         return "";
-    }
-
-    public static BiFunction<Boolean, Boolean, Boolean> parseLogicalOperatorToBiFunc(String logicalOperator) throws Exception {
-        switch (logicalOperator) {
-            case "and" -> {
-                return (a, b) -> a && b;
-            }
-            case "or" -> {
-                return (a, b) -> a || b;
-            }
-            default -> throw new Exception("not a logical operator :" + logicalOperator);
-        }
     }
 
     public static <T extends Comparable<T>> BiFunction<T, T, Boolean> parseIntOperatorToBiFunc(String intOperator) throws Exception {

@@ -66,7 +66,7 @@ public class JavaSchoolStarter {
 
         List<Map<String, Object>> updatedRows = new ArrayList<>();
 
-        List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList = new ArrayList<>();
+        List<String> logicalOperatorsList = new ArrayList<>();
         List<Columns> columnsList = new ArrayList<>();
         List<Object> values = new ArrayList<>();
         List<BiFunction> functionList = new ArrayList<>();
@@ -98,7 +98,7 @@ public class JavaSchoolStarter {
     private <T extends Comparable<T>> List<Map<String, Object>> executeDeleteStatement(Scanner sc) throws Exception {
         List<Map<String, Object>> deletedRows = new ArrayList<>();
 
-        List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList = new ArrayList<>();
+        List<String> logicalOperatorsList = new ArrayList<>();
         List<Columns> columnsList = new ArrayList<>();
         List<Object> values = new ArrayList<>();
         List<BiFunction> functionList = new ArrayList<>();
@@ -119,7 +119,7 @@ public class JavaSchoolStarter {
     private <T extends Comparable<T>> List<Map<String, Object>> executeSelectStatement(Scanner sc) throws Exception {
         List<Map<String, Object>> resultSet = new ArrayList<>();
 
-        List<BiFunction<Boolean, Boolean, Boolean>> logicalOperatorsList = new ArrayList<>();
+        List<String> logicalOperatorsList = new ArrayList<>();
         List<Columns> columnsList = new ArrayList<>();
         List<Object> values = new ArrayList<>();
         List<BiFunction> functionList = new ArrayList<>();
