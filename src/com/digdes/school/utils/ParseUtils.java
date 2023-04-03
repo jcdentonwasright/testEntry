@@ -28,25 +28,27 @@ public final class ParseUtils {
                                                      Map<String, Object> currentRow) {
         List<Boolean> results = new ArrayList<>();
 
-        int i = 0;
-        for (Columns column : columnsList) {
 
+        for (int i = 0;i < columnsList.size();i++) {
+            Columns column = columnsList.get(i);
+            String columnName = column.name();
             boolean result;
 
-            if (!currentRow.containsKey(column.name())) {
-                return false; // no such column in row then comparison cannot be done
+            if (!currentRow.containsKey(columnName)) {
+                results.add(false); // no such column in row then comparison cannot be done
+                continue;
             }
             try {
-                result = (boolean) functions.get(i).apply(currentRow.get(column.name()), values.get(i));
+                result = (boolean) functions.get(i).apply(currentRow.get(columnName), values.get(i));
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
                 System.out.println("cannot compare with null");
                 System.out.println("exception in column : " + column
-                        + " | row value : " + currentRow.get(column.name())
+                        + " | row value : " + currentRow.get(columnName)
                         + " | passed value : " + values.get(i));
                 result = false;
             }
-            i++;
+
             results.add(result);
         }
         if (logicalOperatorsList.isEmpty()) {
