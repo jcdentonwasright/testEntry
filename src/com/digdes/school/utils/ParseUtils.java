@@ -1,169 +1,109 @@
 package com.digdes.school.utils;
 
 import com.digdes.school.enums.Columns;
+import com.digdes.school.enums.LogicalOps;
+import com.digdes.school.node.ComparisonNode;
+import com.digdes.school.node.LogicalOpNode;
+import com.digdes.school.node.Node;
 
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Scanner;
 import java.util.function.BiFunction;
 
 public final class ParseUtils {
-    private static class Wrapper {
+    public static class Wrapper {
         Integer value;
 
         public Wrapper(Integer value) {
             this.value = value;
-        }
-
-        public void add(Integer value) {
-            this.value += value;
         }
     }
 
     private ParseUtils() {
     }
 
-    public static boolean getResultOfWhereComparison(List<String> logicalOperatorsList,
-                                                     List<Columns> columnsList,
-                                                     List<Object> values,
-                                                     List<BiFunction> functions,
-                                                     Map<String, Object> currentRow) {
-        List<Boolean> results = new ArrayList<>();
-
-
-        for (int i = 0;i < columnsList.size();i++) {
-            Columns column = columnsList.get(i);
-            String columnName = column.name();
-            boolean result;
-
-            if (!currentRow.containsKey(columnName)) {
-                results.add(false); // no such column in row then comparison cannot be done
-                continue;
-            }
-            try {
-                result = (boolean) functions.get(i).apply(currentRow.get(columnName), values.get(i));
-            } catch (Exception ex) {
-                System.out.println(ex.getMessage());
-                System.out.println("cannot compare with null");
-                System.out.println("exception in column : " + column
-                        + " | row value : " + currentRow.get(columnName)
-                        + " | passed value : " + values.get(i));
-                result = false;
-            }
-
-            results.add(result);
-        }
-        if (logicalOperatorsList.isEmpty()) {
-            return results.get(0);
-        }
-
-        return getResult(logicalOperatorsList, results);
-    }
-
-    private static boolean getResult(List<String> logicalOperatorsList, List<Boolean> results) {
-        Wrapper wrapper = new Wrapper(0);
-        boolean result = orend(wrapper,logicalOperatorsList,results);
-        String op = logicalOperatorsList.get(wrapper.value);
-        while (op.equals("or")) {
-            wrapper.add(1);
-            boolean a = orend(wrapper,logicalOperatorsList,results);
-            result = result || a;
-            if (wrapper.value == logicalOperatorsList.size()) {
-                break;
-            }
-            op = logicalOperatorsList.get(wrapper.value);
-        }
-        return result;
-    }
-
-    private static boolean orend(Wrapper wrapper, List<String> logicalOperatorsList, List<Boolean> results) {
-        Boolean result = results.get(wrapper.value);
-        if (wrapper.value == logicalOperatorsList.size()) {
+    public static Node whereExpression(List<String> request, Wrapper wrapper) {
+        Node result = parseAnd(request, wrapper);
+        if (wrapper.value >= request.size()) {
             return result;
         }
-        String op = logicalOperatorsList.get(wrapper.value);
-        while (op.equals("and")) {
-            wrapper.add(1);
-            boolean a = results.get(wrapper.value);;
-            result = result && a;
-            if (wrapper.value == logicalOperatorsList.size()) {
+        String token = request.get(wrapper.value);
+        while (token.toLowerCase(Locale.ROOT).equals("or")) {
+            wrapper.value++;
+            result = new LogicalOpNode(LogicalOps.valueOf(token.toLowerCase(Locale.ROOT)), result, parseAnd(request, wrapper));
+            if (wrapper.value >= request.size()) {
                 break;
             }
-            op = logicalOperatorsList.get(wrapper.value);
+            token = request.get(wrapper.value);
         }
         return result;
     }
 
-    public static void parseWhereToResultSet(Scanner sc,
-                                             List<Map<String, Object>> resultSet,
-                                             List<String> logicalOperatorsList,
-                                             List<Columns> columnsList,
-                                             List<Object> values, List<BiFunction> functionList,
-                                             List<Map<String, Object>> data) throws Exception {
-        if (!sc.next().toLowerCase(Locale.ROOT).equals("where")) {
-            throw new Exception("wrong syntax");
+    private static Node parseAnd(List<String> request, Wrapper wrapper) {
+        Node result = parseBraceOrComparison(request, wrapper);
+        if (wrapper.value >= request.size()) {
+            return result;
         }
-
-        parseWhere(sc, logicalOperatorsList, columnsList, values, functionList);
-
-        for (Map<String, Object> currentRow : data) {
-            boolean finalResult = getResultOfWhereComparison(logicalOperatorsList, columnsList, values, functionList, currentRow);
-            if (finalResult) {
-                resultSet.add(currentRow);
+        String token = request.get(wrapper.value);
+        while (token.toLowerCase(Locale.ROOT).equals("and")) {
+            wrapper.value++;
+            result = new LogicalOpNode(LogicalOps.valueOf(token.toLowerCase(Locale.ROOT)), result, parseBraceOrComparison(request, wrapper));
+            if (wrapper.value >= request.size()) {
+                break;
             }
+            token = request.get(wrapper.value);
         }
+        return result;
     }
 
-    public static <T extends Comparable<T>> void parseWhere(Scanner sc, List<String> logicalOperatorsList, List<Columns> columnsList, List<Object> values, List<BiFunction> functions) throws Exception {
-        while (sc.hasNext()) {
-            Columns column = Columns.valueOf(sc.next().replaceAll("^'|'$", "").toLowerCase(Locale.ROOT));
-            columnsList.add(column);
-
-            String operator = sc.next().toLowerCase(Locale.ROOT);
-            switch (column) {
-                case age, id, cost -> {
-                    BiFunction<T, T, Boolean> function = parseIntOperatorToBiFunc(operator);
-                    functions.add(function);
-                }
-                case lastname -> {
-                    BiFunction<String, String, Boolean> function = parseStrOperatorToBiFunc(operator);
-                    functions.add(function);
-                }
-                case active -> {
-                    BiFunction<Boolean, Boolean, Boolean> function = parseBooleanToBiFunc(operator);
-                    functions.add(function);
-                }
+    private static Node parseBraceOrComparison(List<String> request, Wrapper wrapper) {
+        Node result;
+        String token = request.get(wrapper.value);
+        if (token.equals("(")) {
+            ++wrapper.value;
+            result = whereExpression(request, wrapper);
+            if (wrapper.value >= request.size() || !request.get(wrapper.value).equals(")")) {
+                throw new RuntimeException("incorrect syntax : no closing bracket");
             }
-
-            values.add(parseWhereValues(column, sc.next()));
-
-            if (sc.hasNext()) {
-                logicalOperatorsList.add(sc.next().toLowerCase(Locale.ROOT));
-                if (!sc.hasNext()) {
-                    throw new Exception("incorrect syntax");
-                }
-            }
+            ++wrapper.value;
+        } else {
+            result = parseComparison(request, wrapper);
+            wrapper.value++;
         }
+        return result;
     }
 
-    public static Object parseWhereValues(Columns column, String value) throws Exception {
+    private static Node parseComparison(List<String> request, Wrapper wrapper) {
+        Columns column = Columns.valueOf(request.get(wrapper.value).replaceAll("^'|'$", "").toLowerCase(Locale.ROOT));
+
         switch (column) {
             case id, age -> {
-                return Long.parseLong(value);
+                BiFunction function = parseIntOperatorToBiFunc(request.get(++wrapper.value));
+                Long value = Long.parseLong(request.get(++wrapper.value));
+                return new ComparisonNode(function, column, value);
             }
             case cost -> {
-                return Double.parseDouble(value);
+                BiFunction function = parseIntOperatorToBiFunc(request.get(++wrapper.value));
+                Double value = Double.parseDouble(request.get(++wrapper.value));
+                return new ComparisonNode(function, column, value);
+            }
+            case active -> {
+                BiFunction function = parseBooleanToBiFunc(request.get(++wrapper.value));
+                Boolean value = Boolean.parseBoolean(request.get(++wrapper.value));
+                return new ComparisonNode(function, column, value);
             }
             case lastname -> {
-                if (!value.matches("'.*'")) {
-                    throw new Exception("incorrect value to lastname: " + value);
+                BiFunction function = parseStrOperatorToBiFunc(request.get(++wrapper.value));
+                String value = request.get(++wrapper.value);
+                if (!value.matches("'%?[A-zА-д]*%?'")) {
+                    throw new RuntimeException("not a lastname column : " + value);
                 }
-                return value.replaceAll("^'|'$", "");
+                value = value.replaceAll("^'|'$", "");
+                return new ComparisonNode(function, column, value);
             }
-
-            case active -> {
-                return Boolean.parseBoolean(value);
-            }
-
-            default -> throw new Exception("no such column: " + column.name());
+            default -> throw new RuntimeException("not a statement :" + column.name() + " ");
         }
     }
 
@@ -244,7 +184,7 @@ public final class ParseUtils {
         return "";
     }
 
-    public static <T extends Comparable<T>> BiFunction<T, T, Boolean> parseIntOperatorToBiFunc(String intOperator) throws Exception {
+    public static <T extends Comparable<T>> BiFunction<T, T, Boolean> parseIntOperatorToBiFunc(String intOperator) {
         switch (intOperator) {
             case ">" -> {
                 return (a, b) -> a.compareTo(b) > 0;
@@ -272,11 +212,11 @@ public final class ParseUtils {
                 };
             }
 
-            default -> throw new Exception("operator is not supported by Number type: " + intOperator);
+            default -> throw new RuntimeException("operator is not supported by Number type: " + intOperator);
         }
     }
 
-    public static BiFunction<Boolean, Boolean, Boolean> parseBooleanToBiFunc(String logicalOperator) throws Exception {
+    public static BiFunction<Boolean, Boolean, Boolean> parseBooleanToBiFunc(String logicalOperator) {
         switch (logicalOperator) {
             case "=" -> {
                 return Object::equals;
@@ -290,11 +230,11 @@ public final class ParseUtils {
                     return !a.equals(b);
                 };
             }
-            default -> throw new Exception("operator is not supported by Boolean type:" + logicalOperator);
+            default -> throw new RuntimeException("operator is not supported by Boolean type:" + logicalOperator);
         }
     }
 
-    public static BiFunction<String, String, Boolean> parseStrOperatorToBiFunc(String strOperator) throws Exception {
+    public static BiFunction<String, String, Boolean> parseStrOperatorToBiFunc(String strOperator) {
         switch (strOperator) {
             case "like" -> {
                 return (string, regex) -> {
@@ -333,7 +273,7 @@ public final class ParseUtils {
                 };
             }
 
-            default -> throw new Exception("operator is not supported by String type: " + strOperator);
+            default -> throw new RuntimeException("operator is not supported by String type: " + strOperator);
         }
     }
 }

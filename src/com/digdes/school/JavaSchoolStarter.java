@@ -1,10 +1,10 @@
 package com.digdes.school;
 
-import com.digdes.school.enums.Columns;
 import com.digdes.school.enums.Statements;
+import com.digdes.school.node.Node;
+import com.digdes.school.utils.ParseUtils;
 
 import java.util.*;
-import java.util.function.BiFunction;
 
 import static com.digdes.school.utils.ParseUtils.*;
 
@@ -23,6 +23,8 @@ public class JavaSchoolStarter {
         request = request.replaceAll("'(?=[^a-zA-Z0-9а-яА-Я%])", "'  "); // formatting request in more convenient form
         request = request.replaceAll(",", " , ");
         request = request.replaceAll("=(?=\\w|')", "= ");
+        request = request.replaceAll("(\\(?=\\S)","( ");
+        request = request.replaceAll("(?<=\\S)\\)"," )");
         Scanner sc = new Scanner(request);
 
         String statementToken = sc.next();
@@ -64,13 +66,6 @@ public class JavaSchoolStarter {
     private <T extends Comparable<T>> List<Map<String, Object>> executeUpdateStatement(Scanner sc) throws Exception {
         Map<String, Object> valuesRow = new HashMap<>();
 
-        List<Map<String, Object>> updatedRows = new ArrayList<>();
-
-        List<String> logicalOperatorsList = new ArrayList<>();
-        List<Columns> columnsList = new ArrayList<>();
-        List<Object> values = new ArrayList<>();
-        List<BiFunction> functionList = new ArrayList<>();
-
         if (!sc.next().toLowerCase(Locale.ROOT).equals("values")) {
             throw new Exception("wrong syntax");
         }
@@ -82,33 +77,31 @@ public class JavaSchoolStarter {
             }
             return data;
         }
+        Node root = whereExpression(sc.tokens().toList(),new Wrapper(0));
 
-        parseWhere(sc, logicalOperatorsList, columnsList, values, functionList);
-        for (Map<String, Object> currentRow : data) {
-            boolean finalResult = getResultOfWhereComparison(logicalOperatorsList, columnsList, values, functionList, currentRow);
-            if (finalResult) {
-                currentRow.putAll(valuesRow);
-                updatedRows.add(currentRow);
+        List<Map<String, Object>> updatedRows = new ArrayList<>();
+
+        for (Map<String, Object> row : data) {
+            if (root.compute(row)) {
+                row.putAll(valuesRow);
+                updatedRows.add(row);
             }
         }
-
         return updatedRows;
     }
 
-    private <T extends Comparable<T>> List<Map<String, Object>> executeDeleteStatement(Scanner sc) throws Exception {
+    private <T extends Comparable<T>> List<Map<String, Object>> executeDeleteStatement(Scanner sc) {
         List<Map<String, Object>> deletedRows = new ArrayList<>();
 
-        List<String> logicalOperatorsList = new ArrayList<>();
-        List<Columns> columnsList = new ArrayList<>();
-        List<Object> values = new ArrayList<>();
-        List<BiFunction> functionList = new ArrayList<>();
         if (!sc.hasNext()) {
             deletedRows.addAll(data);
             deletedRows.clear();
             return deletedRows;
         }
-
-        parseWhereToResultSet(sc, deletedRows, logicalOperatorsList, columnsList, values, functionList, data);
+        if (!sc.next().toLowerCase(Locale.ROOT).equals("where")) {
+            throw new RuntimeException("incorrect syntax");
+        }
+        buildTreeAndCompute(sc, deletedRows);
 
         for (Map<String, Object> deletedRow : deletedRows) {
             data.remove(deletedRow);
@@ -116,19 +109,22 @@ public class JavaSchoolStarter {
         return deletedRows;
     }
 
-    private <T extends Comparable<T>> List<Map<String, Object>> executeSelectStatement(Scanner sc) throws Exception {
+    private List<Map<String, Object>> executeSelectStatement(Scanner sc) {
         List<Map<String, Object>> resultSet = new ArrayList<>();
 
-        List<String> logicalOperatorsList = new ArrayList<>();
-        List<Columns> columnsList = new ArrayList<>();
-        List<Object> values = new ArrayList<>();
-        List<BiFunction> functionList = new ArrayList<>();
         if (!sc.hasNext()) {
             return data;
         }
-
-        parseWhereToResultSet(sc, resultSet, logicalOperatorsList, columnsList, values, functionList, data);
-
+        buildTreeAndCompute(sc, resultSet);
         return resultSet;
+    }
+
+    private void buildTreeAndCompute(Scanner sc, List<Map<String, Object>> resultSet) {
+        Node root = whereExpression(sc.tokens().toList(),new Wrapper(0));
+        for (Map<String,Object> row : data) {
+            if (root.compute(row)) {
+                resultSet.add(row);
+            }
+        }
     }
 }
