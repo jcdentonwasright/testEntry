@@ -63,7 +63,7 @@ public class JavaSchoolStarter {
 
     }
 
-    private <T extends Comparable<T>> List<Map<String, Object>> executeUpdateStatement(Scanner sc) throws Exception {
+    private List<Map<String, Object>> executeUpdateStatement(Scanner sc) throws Exception {
         Map<String, Object> valuesRow = new HashMap<>();
 
         if (!sc.next().toLowerCase(Locale.ROOT).equals("values")) {
@@ -90,7 +90,7 @@ public class JavaSchoolStarter {
         return updatedRows;
     }
 
-    private <T extends Comparable<T>> List<Map<String, Object>> executeDeleteStatement(Scanner sc) {
+    private List<Map<String, Object>> executeDeleteStatement(Scanner sc) {
         List<Map<String, Object>> deletedRows = new ArrayList<>();
 
         if (!sc.hasNext()) {
