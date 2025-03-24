@@ -95,7 +95,7 @@ public class JavaSchoolStarter {
 
         if (!sc.hasNext()) {
             deletedRows.addAll(data);
-            deletedRows.clear();
+            data.clear();
             return deletedRows;
         }
         if (!sc.next().toLowerCase(Locale.ROOT).equals("where")) {
